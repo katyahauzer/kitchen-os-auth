@@ -107,6 +107,9 @@
       <p>&#1058;&#1077;&#1087;&#1077;&#1088;&#1100; &#1074;&#1099; &#1084;&#1086;&#1078;&#1077;&#1090;&#1077; &#1074;&#1086;&#1081;&#1090;&#1080; &#1074; Kitchen OS &#1089; &#1085;&#1086;&#1074;&#1099;&#1084; &#1087;&#1072;&#1088;&#1086;&#1083;&#1077;&#1084;. &#1047;&#1072;&#1082;&#1088;&#1086;&#1081;&#1090;&#1077; &#1101;&#1090;&#1091; &#1089;&#1090;&#1088;&#1072;&#1085;&#1080;&#1094;&#1091; &#1080; &#1086;&#1090;&#1082;&#1088;&#1086;&#1081;&#1090;&#1077; &#1087;&#1088;&#1080;&#1083;&#1086;&#1078;&#1077;&#1085;&#1080;&#1077;.</p>
     </div>
 
+    <!-- Debug -->
+    <div id="debug" style="margin-top:16px;padding:12px;background:#f0f0f0;border-radius:8px;font-size:12px;font-family:monospace;color:#333;word-break:break-all;"></div>
+
     <!-- Error state -->
     <div id="linkError" class="hidden success">
       <div class="check">&#10060;</div>
@@ -121,8 +124,17 @@
 
     let supabase;
 
+    function debugLog(msg) {
+      console.log('[RESET] ' + msg);
+      var d = document.getElementById('debug');
+      if (d) d.innerHTML += msg + '<br>';
+    }
+
     async function init() {
       try {
+        debugLog('Hash: ' + window.location.hash.substring(0, 80) + '...');
+        debugLog('Search: ' + window.location.search);
+
         supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         const hash = window.location.hash;
@@ -130,33 +142,59 @@
         const code = params.get('code');
 
         if (code) {
+          debugLog('Mode: PKCE code');
           const { error } = await supabase.auth.exchangeCodeForSession(code);
-          if (error) { showLinkError(); return; }
+          if (error) { debugLog('Code exchange error: ' + error.message); showLinkError(); return; }
           showForm();
-        } else if (hash && (hash.includes('access_token') || hash.includes('type=recovery'))) {
-          // Supabase client auto-detects hash fragment, but needs time to process it.
-          // Use onAuthStateChange to wait for the session to be established.
-          let handled = false;
-          const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-            if (handled) return;
-            if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
-              handled = true;
-              subscription.unsubscribe();
+        } else if (hash && hash.includes('access_token')) {
+          debugLog('Mode: access_token in hash');
+          // Manually parse tokens from hash and set session
+          const hashParams = new URLSearchParams(hash.substring(1));
+          const accessToken = hashParams.get('access_token');
+          const refreshToken = hashParams.get('refresh_token');
+          const tokenType = hashParams.get('type');
+          debugLog('Token type: ' + tokenType);
+          debugLog('Has access_token: ' + !!accessToken);
+          debugLog('Has refresh_token: ' + !!refreshToken);
+
+          if (accessToken) {
+            // Try setSession with the tokens from the hash
+            const { data, error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken || ''
+            });
+            debugLog('setSession result - error: ' + (error ? error.message : 'none'));
+            debugLog('setSession result - session: ' + (data.session ? 'yes' : 'no'));
+
+            if (error || !data.session) {
+              // Fallback: try onAuthStateChange
+              debugLog('Trying onAuthStateChange fallback...');
+              let handled = false;
+              const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+                debugLog('Auth event: ' + event + ', session: ' + !!session);
+                if (handled) return;
+                if (session) {
+                  handled = true;
+                  subscription.unsubscribe();
+                  showForm();
+                }
+              });
+              setTimeout(() => {
+                if (!handled) { handled = true; subscription.unsubscribe(); showLinkError(); }
+              }, 5000);
+            } else {
               showForm();
             }
-          });
-          // Timeout after 5 seconds if no auth event fires
-          setTimeout(() => {
-            if (!handled) {
-              handled = true;
-              subscription.unsubscribe();
-              showLinkError();
-            }
-          }, 5000);
+          } else {
+            debugLog('No access_token found in hash');
+            showLinkError();
+          }
         } else {
+          debugLog('No code or access_token found');
           showLinkError();
         }
       } catch (e) {
+        debugLog('Exception: ' + e.message);
         showLinkError();
       }
     }

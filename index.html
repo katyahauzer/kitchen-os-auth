@@ -133,10 +133,26 @@
           const { error } = await supabase.auth.exchangeCodeForSession(code);
           if (error) { showLinkError(); return; }
           showForm();
-        } else if (hash && hash.includes('access_token')) {
-          const { data, error } = await supabase.auth.getSession();
-          if (error || !data.session) { showLinkError(); return; }
-          showForm();
+        } else if (hash && (hash.includes('access_token') || hash.includes('type=recovery'))) {
+          // Supabase client auto-detects hash fragment, but needs time to process it.
+          // Use onAuthStateChange to wait for the session to be established.
+          let handled = false;
+          const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+            if (handled) return;
+            if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
+              handled = true;
+              subscription.unsubscribe();
+              showForm();
+            }
+          });
+          // Timeout after 5 seconds if no auth event fires
+          setTimeout(() => {
+            if (!handled) {
+              handled = true;
+              subscription.unsubscribe();
+              showLinkError();
+            }
+          }, 5000);
         } else {
           showLinkError();
         }

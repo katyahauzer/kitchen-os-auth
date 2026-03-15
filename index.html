@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kitchen OS &#8212; &#1057;&#1073;&#1088;&#1086;&#1089; &#1087;&#1072;&#1088;&#1086;&#1083;&#1103;</title>
+  <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #FAF9FC;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 40px;
+      max-width: 420px;
+      width: 100%;
+      box-shadow: 0 2px 12px rgba(107,91,149,0.1);
+    }
+    .logo { text-align: center; margin-bottom: 24px; }
+    .logo .emoji { font-size: 40px; margin-bottom: 8px; }
+    .logo h1 { color: #6B5B95; font-size: 24px; font-weight: 700; }
+    .description { color: #666; font-size: 15px; line-height: 1.5; margin-bottom: 24px; text-align: center; }
+    label { display: block; color: #333; font-size: 14px; font-weight: 500; margin-bottom: 6px; }
+    input[type="password"] {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1.5px solid #ddd;
+      border-radius: 10px;
+      font-size: 16px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input[type="password"]:focus { border-color: #6B5B95; }
+    .field { margin-bottom: 16px; }
+    .btn {
+      width: 100%;
+      padding: 14px;
+      background: #6B5B95;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: opacity 0.2s;
+    }
+    .btn:hover { opacity: 0.9; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .error { color: #e53935; font-size: 14px; margin-top: 12px; text-align: center; }
+    .success { text-align: center; color: #333; }
+    .success .check { font-size: 48px; margin-bottom: 16px; }
+    .success h2 { color: #6B5B95; font-size: 20px; margin-bottom: 12px; }
+    .success p { color: #666; font-size: 15px; line-height: 1.5; }
+    .hidden { display: none; }
+    .spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <div class="emoji">&#127859;</div>
+      <h1>Kitchen OS</h1>
+    </div>
+
+    <!-- Loading state -->
+    <div id="loading" class="description">&#1055;&#1088;&#1086;&#1074;&#1077;&#1088;&#1103;&#1077;&#1084; &#1089;&#1089;&#1099;&#1083;&#1082;&#1091;...</div>
+
+    <!-- Form -->
+    <div id="form" class="hidden">
+      <p class="description">&#1042;&#1074;&#1077;&#1076;&#1080;&#1090;&#1077; &#1085;&#1086;&#1074;&#1099;&#1081; &#1087;&#1072;&#1088;&#1086;&#1083;&#1100; &#1076;&#1083;&#1103; &#1074;&#1072;&#1096;&#1077;&#1075;&#1086; &#1072;&#1082;&#1082;&#1072;&#1091;&#1085;&#1090;&#1072;</p>
+      <div class="field">
+        <label for="password">&#1053;&#1086;&#1074;&#1099;&#1081; &#1087;&#1072;&#1088;&#1086;&#1083;&#1100;</label>
+        <input type="password" id="password" placeholder="&#1052;&#1080;&#1085;&#1080;&#1084;&#1091;&#1084; 6 &#1089;&#1080;&#1084;&#1074;&#1086;&#1083;&#1086;&#1074;" autocomplete="new-password">
+      </div>
+      <div class="field">
+        <label for="confirm">&#1055;&#1086;&#1074;&#1090;&#1086;&#1088;&#1080;&#1090;&#1077; &#1087;&#1072;&#1088;&#1086;&#1083;&#1100;</label>
+        <input type="password" id="confirm" placeholder="&#1055;&#1086;&#1074;&#1090;&#1086;&#1088;&#1080;&#1090;&#1077; &#1085;&#1086;&#1074;&#1099;&#1081; &#1087;&#1072;&#1088;&#1086;&#1083;&#1100;" autocomplete="new-password">
+      </div>
+      <button class="btn" id="submitBtn" onclick="handleSubmit()">&#1057;&#1086;&#1093;&#1088;&#1072;&#1085;&#1080;&#1090;&#1100; &#1087;&#1072;&#1088;&#1086;&#1083;&#1100;</button>
+      <div id="error" class="error hidden"></div>
+    </div>
+
+    <!-- Success -->
+    <div id="success" class="hidden success">
+      <div class="check">&#9989;</div>
+      <h2>&#1055;&#1072;&#1088;&#1086;&#1083;&#1100; &#1080;&#1079;&#1084;&#1077;&#1085;&#1105;&#1085;!</h2>
+      <p>&#1058;&#1077;&#1087;&#1077;&#1088;&#1100; &#1074;&#1099; &#1084;&#1086;&#1078;&#1077;&#1090;&#1077; &#1074;&#1086;&#1081;&#1090;&#1080; &#1074; Kitchen OS &#1089; &#1085;&#1086;&#1074;&#1099;&#1084; &#1087;&#1072;&#1088;&#1086;&#1083;&#1077;&#1084;. &#1047;&#1072;&#1082;&#1088;&#1086;&#1081;&#1090;&#1077; &#1101;&#1090;&#1091; &#1089;&#1090;&#1088;&#1072;&#1085;&#1080;&#1094;&#1091; &#1080; &#1086;&#1090;&#1082;&#1088;&#1086;&#1081;&#1090;&#1077; &#1087;&#1088;&#1080;&#1083;&#1086;&#1078;&#1077;&#1085;&#1080;&#1077;.</p>
+    </div>
+
+    <!-- Error state -->
+    <div id="linkError" class="hidden success">
+      <div class="check">&#10060;</div>
+      <h2>&#1057;&#1089;&#1099;&#1083;&#1082;&#1072; &#1085;&#1077;&#1076;&#1077;&#1081;&#1089;&#1090;&#1074;&#1080;&#1090;&#1077;&#1083;&#1100;&#1085;&#1072;</h2>
+      <p>&#1069;&#1090;&#1072; &#1089;&#1089;&#1099;&#1083;&#1082;&#1072; &#1076;&#1083;&#1103; &#1089;&#1073;&#1088;&#1086;&#1089;&#1072; &#1087;&#1072;&#1088;&#1086;&#1083;&#1103; &#1080;&#1089;&#1090;&#1077;&#1082;&#1083;&#1072; &#1080;&#1083;&#1080; &#1091;&#1078;&#1077; &#1073;&#1099;&#1083;&#1072; &#1080;&#1089;&#1087;&#1086;&#1083;&#1100;&#1079;&#1086;&#1074;&#1072;&#1085;&#1072;. &#1047;&#1072;&#1087;&#1088;&#1086;&#1089;&#1080;&#1090;&#1077; &#1085;&#1086;&#1074;&#1091;&#1102; &#1089;&#1089;&#1099;&#1083;&#1082;&#1091; &#1074; &#1087;&#1088;&#1080;&#1083;&#1086;&#1078;&#1077;&#1085;&#1080;&#1080; Kitchen OS.</p>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://qxjzekuayjavatifrzia.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF4anpla3VheWphdmF0aWZyemlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc2MzE0MjMsImV4cCI6MjA4MzIwNzQyM30.Lo5WHMLhYxCVhweH9GZKRhdWc_VhRwrUFOaIMxt9cq0';
+
+    let supabase;
+
+    async function init() {
+      try {
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        const hash = window.location.hash;
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get('code');
+
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) { showLinkError(); return; }
+          showForm();
+        } else if (hash && hash.includes('access_token')) {
+          const { data, error } = await supabase.auth.getSession();
+          if (error || !data.session) { showLinkError(); return; }
+          showForm();
+        } else {
+          showLinkError();
+        }
+      } catch (e) {
+        showLinkError();
+      }
+    }
+
+    function showForm() {
+      document.getElementById('loading').classList.add('hidden');
+      document.getElementById('form').classList.remove('hidden');
+      document.getElementById('password').focus();
+    }
+
+    function showLinkError() {
+      document.getElementById('loading').classList.add('hidden');
+      document.getElementById('linkError').classList.remove('hidden');
+    }
+
+    async function handleSubmit() {
+      const password = document.getElementById('password').value;
+      const confirm = document.getElementById('confirm').value;
+      const errorEl = document.getElementById('error');
+      const btn = document.getElementById('submitBtn');
+
+      errorEl.classList.add('hidden');
+
+      if (password.length < 6) {
+        errorEl.innerHTML = '&#1055;&#1072;&#1088;&#1086;&#1083;&#1100; &#1076;&#1086;&#1083;&#1078;&#1077;&#1085; &#1073;&#1099;&#1090;&#1100; &#1084;&#1080;&#1085;&#1080;&#1084;&#1091;&#1084; 6 &#1089;&#1080;&#1084;&#1074;&#1086;&#1083;&#1086;&#1074;';
+        errorEl.classList.remove('hidden');
+        return;
+      }
+
+      if (password !== confirm) {
+        errorEl.innerHTML = '&#1055;&#1072;&#1088;&#1086;&#1083;&#1080; &#1085;&#1077; &#1089;&#1086;&#1074;&#1087;&#1072;&#1076;&#1072;&#1102;&#1090;';
+        errorEl.classList.remove('hidden');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>';
+
+      try {
+        const { error } = await supabase.auth.updateUser({ password });
+        if (error) {
+          errorEl.innerHTML = error.message || '&#1053;&#1077; &#1091;&#1076;&#1072;&#1083;&#1086;&#1089;&#1100; &#1089;&#1084;&#1077;&#1085;&#1080;&#1090;&#1100; &#1087;&#1072;&#1088;&#1086;&#1083;&#1100;';
+          errorEl.classList.remove('hidden');
+          btn.disabled = false;
+          btn.innerHTML = '&#1057;&#1086;&#1093;&#1088;&#1072;&#1085;&#1080;&#1090;&#1100; &#1087;&#1072;&#1088;&#1086;&#1083;&#1100;';
+          return;
+        }
+
+        document.getElementById('form').classList.add('hidden');
+        document.getElementById('success').classList.remove('hidden');
+      } catch (e) {
+        errorEl.innerHTML = '&#1055;&#1088;&#1086;&#1080;&#1079;&#1086;&#1096;&#1083;&#1072; &#1086;&#1096;&#1080;&#1073;&#1082;&#1072;. &#1055;&#1086;&#1087;&#1088;&#1086;&#1073;&#1091;&#1081;&#1090;&#1077; &#1077;&#1097;&#1105; &#1088;&#1072;&#1079;.';
+        errorEl.classList.remove('hidden');
+        btn.disabled = false;
+        btn.innerHTML = '&#1057;&#1086;&#1093;&#1088;&#1072;&#1085;&#1080;&#1090;&#1100; &#1087;&#1072;&#1088;&#1086;&#1083;&#1100;';
+      }
+    }
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && !document.getElementById('form').classList.contains('hidden')) {
+        handleSubmit();
+      }
+    });
+
+    init();
+  </script>
+</body>
+</html>
